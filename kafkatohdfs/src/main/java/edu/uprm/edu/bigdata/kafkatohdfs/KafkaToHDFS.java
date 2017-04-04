@@ -27,7 +27,7 @@ public class KafkaToHDFS {
 
     public static final String bootstrapServers = "data04:9092";
     public static final String groupID = "trump-consumer-group";
-    private static final List<String> topics = Arrays.asList("trump"); ;
+    private static final List<String> topics = Arrays.asList("trump");
 
     private static Consumer<Long, String> consumer;
     private final Properties properties = new Properties();
