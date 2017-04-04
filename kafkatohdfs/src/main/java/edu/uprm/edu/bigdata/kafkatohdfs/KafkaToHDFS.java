@@ -12,9 +12,10 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
-import java.io.PrintWriter;
 import java.net.URI;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 
@@ -23,7 +24,7 @@ import java.util.Properties;
  */
 public class KafkaToHDFS {
     public static final String hdfs_main = "hdfs://master:9000";
-    public static final String out_hdfs_file = "/home/omar/trump_tweets_stream.txt";
+    public static final String out_hdfs_file = "/home/omar/trump_tweets_stream";
 
     public static final String bootstrapServers = "data04:9092";
     public static final String groupID = "trump-consumer-group";
@@ -44,13 +45,19 @@ public class KafkaToHDFS {
     public static void main(String[] args) throws Exception {
         if (consumer == null) new KafkaToHDFS();
 
+        SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy-hms");
+        String out_file = out_hdfs_file + "_" + sdf.format(new Date()) + ".txt";
+
         Configuration configuration = new Configuration();
         FileSystem hdfs = FileSystem.get(new URI(hdfs_main), configuration);
-        Path file = new Path(hdfs_main + out_hdfs_file);
+        Path file = new Path(hdfs_main + out_file);
+        FSDataOutputStream fs;
 
         if (!hdfs.exists(file)) {
-            FSDataOutputStream fs = hdfs.create(file);
-            fs.close();
+            fs = hdfs.create(file);
+        } else {
+            System.out.println("File " + file.toString() + "already exists!");
+            return;
         }
 
         try {
@@ -60,18 +67,14 @@ public class KafkaToHDFS {
                 ConsumerRecords<Long, String> records = consumer.poll(1000);
 
                 for (ConsumerRecord<Long, String> record : records) {
-                    FSDataOutputStream fs = hdfs.append(file);
-                    PrintWriter out = new PrintWriter(fs);
-
-                    out.append(record.value() + "\n");
-
-                    out.close();
-                    fs.close();
+                    fs.write((record.value() + "\n").getBytes("UTF-8"));
+                    fs.hflush();
                 }
             }
         }  catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
         } finally {
+            if (fs != null) fs.close();
             consumer.close();
         }
     }
